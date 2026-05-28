@@ -199,22 +199,48 @@ func _build_layout() -> void:
 	add_child(modal_root)
 
 func _build_table_bg() -> void:
-	# 草地平铺作为大背景
-	var grass_path := "res://assets/store/td/grass.png"
-	if ResourceLoader.exists(grass_path):
-		var bg := TextureRect.new()
-		bg.texture = load(grass_path)
-		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		bg.stretch_mode = TextureRect.STRETCH_TILE
-		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(bg)
-	# 暗角增强氛围
+	# 双层背景：底色 + 中央亮区，模拟柔和草地光照
+	var base := ColorRect.new()
+	base.color = Color("#5cb14a")  # 鲜亮草绿
+	base.set_anchors_preset(Control.PRESET_FULL_RECT)
+	base.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(base)
+	# 中央更亮的椭圆光晕（焦点突出棋盘）
+	var glow_tex := _make_radial_glow_texture()
+	if glow_tex != null:
+		var glow := TextureRect.new()
+		glow.texture = glow_tex
+		glow.set_anchors_preset(Control.PRESET_FULL_RECT)
+		glow.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		glow.stretch_mode = TextureRect.STRETCH_SCALE
+		glow.modulate = Color(1, 1, 1, 0.55)
+		glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(glow)
+	# 边缘暗角
 	var vignette := ColorRect.new()
-	vignette.color = Color(0, 0, 0, 0.15)
+	vignette.color = Color(0, 0, 0, 0.18)
 	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
 	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(vignette)
+
+# 椭圆径向高光纹理（中央亮、四周渐隐）
+static var _glow_cache: Texture2D = null
+static func _make_radial_glow_texture() -> Texture2D:
+	if _glow_cache != null:
+		return _glow_cache
+	var size := 256
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var cx := size / 2
+	var cy := size / 2
+	var max_r := float(size) / 2.0
+	for y in size:
+		for x in size:
+			var d: float = Vector2(x - cx, y - cy).length() / max_r
+			d = clamp(d, 0.0, 1.0)
+			var a: float = pow(1.0 - d, 1.6) * 0.9
+			img.set_pixel(x, y, Color(0.95, 1.0, 0.75, a))
+	_glow_cache = ImageTexture.create_from_image(img)
+	return _glow_cache
 
 # ===== 初始化 =====
 func _init_new_game(rounds: int, mode: String, chars: Array, in_npcs: Array) -> void:
@@ -380,71 +406,68 @@ func _build_board() -> void:
 	_place_decorations(path_points)
 
 	# NPC 头像贴在格子上方
+	# NPC 改为路径旁的 chibi 灯笼标记（不再贴真人头像）
 	for i in npc_slot_indices.size():
 		var slot_idx: int = npc_slot_indices[i]
 		if i >= npcs_in_play.size():
 			continue
 		var n: Dictionary = npcs_in_play[i]
-		var avatar := TextureRect.new()
-		avatar.texture = UIUtil.avatar_texture(String(n.get("avatar", "")))
-		avatar.custom_minimum_size = Vector2(36, 36)
-		avatar.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		avatar.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		avatar.position = tile_positions[slot_idx] + Vector2(BoardSpecRef.TILE_W * 0.5 - 18, -22)
-		avatar.size = Vector2(36, 36)
-		var ring := Panel.new()
-		var rsb := StyleBoxFlat.new()
-		rsb.bg_color = Color(0, 0, 0, 0.0)
-		rsb.border_color = UIUtil.parse_color(String(n.get("color", "#9b59b6")))
-		rsb.set_border_width_all(2)
-		rsb.set_corner_radius_all(20)
-		ring.add_theme_stylebox_override("panel", rsb)
-		ring.position = avatar.position - Vector2(2, 2)
-		ring.size = Vector2(40, 40)
-		npc_root.add_child(ring)
-		npc_root.add_child(avatar)
-		npc_visuals.append({"avatar": avatar, "ring": ring, "slot": slot_idx})
+		var center: Vector2 = tile_positions[slot_idx] + Vector2(BoardSpecRef.TILE_W * 0.5, BoardSpecRef.TILE_W * 0.5)
+		# 用红灯笼图标作为 NPC 标记，悬浮在格子上方
+		var icon := TextureRect.new()
+		var lan_path := "res://assets/store/mp/lantern.png"
+		if ResourceLoader.exists(lan_path):
+			icon.texture = load(lan_path)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		var icon_size := 50.0
+		icon.position = center + Vector2(-icon_size * 0.5, -icon_size - 30)
+		icon.size = Vector2(icon_size, icon_size)
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		npc_root.add_child(icon)
+		# 名字标牌
+		var label := UIUtil.make_label(String(n.get("name", "")), 11, Color(1, 0.92, 0.6), true)
+		label.position = center + Vector2(-30, -8)
+		label.size = Vector2(60, 16)
+		label.add_theme_constant_override("outline_size", 3)
+		label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+		npc_root.add_child(label)
+		npc_visuals.append({"avatar": icon, "label": label, "slot": slot_idx})
 
-# ===== 路径外围装饰（树 / 灌木） =====
+# ===== 路径外围装饰（树 / 灌木 / 灯笼） =====
 func _place_decorations(path_points: Array) -> void:
 	var deco_paths := [
-		"res://assets/store/deco/tree1.png",
-		"res://assets/store/deco/tree2.png",
-		"res://assets/store/deco/bush.png",
-		"res://assets/store/deco/pine_large.png",
-		"res://assets/store/deco/pine_low.png",
+		"res://assets/store/mp/tree.png",
+		"res://assets/store/mp/bush.png",
+		"res://assets/store/mp/lantern.png",
 	]
 	# 棋盘外围 + 内部岛屿区域放装饰，避开路径 ~70px 缓冲
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 4242  # 固定种子，每次开局相同
+	rng.seed = 4242
 	var vp_size: Vector2 = get_viewport_rect().size
-	var board_w: float = 7.0 * BoardSpecRef.ST + BoardSpecRef.TILE_W
-	var board_h: float = 6.0 * BoardSpecRef.ST + BoardSpecRef.TILE_W
-	# 路径围出的内部矩形
 	var inner_min: Vector2 = path_points[0] + Vector2(BoardSpecRef.TILE_W, BoardSpecRef.TILE_W) * 0.5
 	var inner_max: Vector2 = path_points[14] - Vector2(BoardSpecRef.TILE_W, BoardSpecRef.TILE_W) * 0.5
-	# 在内部岛屿放装饰
-	for i in 14:
+	# 内部岛屿装饰
+	for i in 8:
 		var pos := Vector2(
-			rng.randf_range(inner_min.x + 30, inner_max.x - 30),
-			rng.randf_range(inner_min.y + 30, inner_max.y - 30))
-		_spawn_deco(deco_paths[rng.randi() % deco_paths.size()], pos, rng.randf_range(0.45, 0.7))
-	# 棋盘外围（路径之外）放装饰
-	for i in 30:
+			rng.randf_range(inner_min.x + 40, inner_max.x - 40),
+			rng.randf_range(inner_min.y + 40, inner_max.y - 40))
+		_spawn_deco(deco_paths[rng.randi() % deco_paths.size()], pos, rng.randf_range(0.55, 0.85))
+	# 棋盘外围装饰
+	for i in 22:
 		var pos: Vector2
 		var attempts := 0
-		while attempts < 10:
-			pos = Vector2(rng.randf_range(0, vp_size.x - 360), rng.randf_range(0, vp_size.y))
-			# 距离最近路径点
+		while attempts < 12:
+			pos = Vector2(rng.randf_range(20, vp_size.x - 380), rng.randf_range(40, vp_size.y - 40))
 			var min_d := 9999.0
 			for p in path_points:
 				min_d = min(min_d, pos.distance_to(p))
-			if min_d > 90 and min_d < 350:
+			if min_d > 95 and min_d < 300:
 				break
 			attempts += 1
-		if attempts >= 10:
+		if attempts >= 12:
 			continue
-		_spawn_deco(deco_paths[rng.randi() % deco_paths.size()], pos, rng.randf_range(0.4, 0.65))
+		_spawn_deco(deco_paths[rng.randi() % deco_paths.size()], pos, rng.randf_range(0.6, 1.0))
 
 func _spawn_deco(path: String, pos: Vector2, scale_v: float) -> void:
 	if not ResourceLoader.exists(path):
@@ -454,11 +477,12 @@ func _spawn_deco(path: String, pos: Vector2, scale_v: float) -> void:
 	sprite.texture = tex
 	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	# 大图素材统一缩到 ~80-120px，cartography pack 64×128 也按 scale 缩
-	var tw: float = 96.0 * scale_v
-	var th: float = tw * (float(tex.get_height()) / float(tex.get_width()))
+	# 卡通素材：基准高度 110px，按 scale 调
+	var th: float = 110.0 * scale_v
+	var tw: float = th * (float(tex.get_width()) / float(tex.get_height()))
 	sprite.size = Vector2(tw, th)
-	sprite.position = pos - Vector2(tw * 0.5, th * 0.85)  # 锚底中
+	# 锚底中：让\"脚\"刚好落在 pos 上，模拟立体感
+	sprite.position = pos - Vector2(tw * 0.5, th * 0.92)
 	sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	board_root.add_child(sprite)
 
