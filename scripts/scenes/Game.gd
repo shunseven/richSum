@@ -199,21 +199,22 @@ func _build_layout() -> void:
 	add_child(modal_root)
 
 func _build_table_bg() -> void:
-	# 整张 AI 生成的大富翁地图作为棋盘画面
-	var map_path := "res://assets/store/board_map.png"
-	if ResourceLoader.exists(map_path):
+	# 草地平铺作为大背景
+	var grass_path := "res://assets/store/td/grass.png"
+	if ResourceLoader.exists(grass_path):
 		var bg := TextureRect.new()
-		bg.texture = load(map_path)
+		bg.texture = load(grass_path)
 		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		bg.stretch_mode = TextureRect.STRETCH_TILE
 		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(bg)
-	else:
-		var fallback := ColorRect.new()
-		fallback.color = Color(0.2, 0.4, 0.3)
-		fallback.set_anchors_preset(Control.PRESET_FULL_RECT)
-		add_child(fallback)
+	# 暗角增强氛围
+	var vignette := ColorRect.new()
+	vignette.color = Color(0, 0, 0, 0.15)
+	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(vignette)
 
 # ===== 初始化 =====
 func _init_new_game(rounds: int, mode: String, chars: Array, in_npcs: Array) -> void:
@@ -283,9 +284,50 @@ func _build_board() -> void:
 		max(0.0, (board_size.y - spec_h) * 0.5)
 	)
 	tile_positions = BoardSpecRef.get_tile_positions(board_origin)
-	# 不再绘制路径瓷砖，路径已经在背景大图上画好。
-	# 这里只放\"判定点\"标记：每格一个小方框（半透明），用于事件触发位置可视化。
-	# 1) 用透明 Control 占位（保留 tile_visuals 数组结构供其他逻辑用）
+
+	# === 1) 绘制连续路径（Line2D 双层：外描边 + 内沙土色填充） ===
+	var path_points: Array[Vector2] = []
+	for i in BoardSpecRef.BOARD_SIZE:
+		# 路径走每个格子的中心点
+		path_points.append(tile_positions[i] + Vector2(BoardSpecRef.TILE_W * 0.5, BoardSpecRef.TILE_W * 0.5))
+	# 闭合路径：把第 0 个点再加到末尾
+	path_points.append(path_points[0])
+
+	# 外圈描边（深棕色，宽一些）
+	var outline := Line2D.new()
+	outline.width = 86.0
+	outline.default_color = Color("#5a3a1a")
+	outline.joint_mode = Line2D.LINE_JOINT_ROUND
+	outline.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	outline.end_cap_mode = Line2D.LINE_CAP_ROUND
+	outline.antialiased = true
+	for p in path_points:
+		outline.add_point(p)
+	board_root.add_child(outline)
+
+	# 路径主体（暖沙土色）
+	var path_main := Line2D.new()
+	path_main.width = 78.0
+	path_main.default_color = Color("#d9a86e")
+	path_main.joint_mode = Line2D.LINE_JOINT_ROUND
+	path_main.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	path_main.end_cap_mode = Line2D.LINE_CAP_ROUND
+	path_main.antialiased = true
+	for p in path_points:
+		path_main.add_point(p)
+	board_root.add_child(path_main)
+
+	# 路径中央虚线（亮一点的纹理感）
+	var path_dash := Line2D.new()
+	path_dash.width = 4.0
+	path_dash.default_color = Color("#fff2c8", 0.55)
+	path_dash.joint_mode = Line2D.LINE_JOINT_ROUND
+	path_dash.antialiased = true
+	for p in path_points:
+		path_dash.add_point(p)
+	board_root.add_child(path_dash)
+
+	# === 2) 24 个格子定位标（路径上的圆形踏板） ===
 	for i in BoardSpecRef.BOARD_SIZE:
 		var slot := Control.new()
 		slot.position = tile_positions[i]
@@ -294,45 +336,48 @@ func _build_board() -> void:
 		board_root.add_child(slot)
 		tile_visuals.append(slot)
 
-	# 2) 事件标记：用真实图标 sprite（不再用色块圆）
+		var center: Vector2 = path_points[i]
+		# 圆形踏板（每格一块石板）
+		var pad := Panel.new()
+		var psb := StyleBoxFlat.new()
+		psb.bg_color = Color("#f5d796")
+		psb.border_color = Color("#8b5a28")
+		psb.set_border_width_all(3)
+		psb.set_corner_radius_all(40)
+		pad.add_theme_stylebox_override("panel", psb)
+		var pad_size := 64.0
+		pad.position = center - Vector2(pad_size * 0.5, pad_size * 0.5)
+		pad.size = Vector2(pad_size, pad_size)
+		pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		board_root.add_child(pad)
+
+	# === 3) 事件图标（叠在踏板中央） ===
 	var icon_paths := {
-		BoardSpecRef.TYPE_START:  "res://assets/store/ui/treasure.png",   # 起点宝箱
-		BoardSpecRef.TYPE_EVENT:  "res://assets/store/ui/star_red.png",   # 事件红星
-		BoardSpecRef.TYPE_SYSTEM: "res://assets/store/ui/star_yellow.png",# 系统金星
-		BoardSpecRef.TYPE_COIN:   "res://assets/store/ui/coin_gold.png",  # 金币
-		BoardSpecRef.TYPE_NPC:    "res://assets/store/ui/particle_star.png",# NPC
+		BoardSpecRef.TYPE_START:  "res://assets/store/ui/treasure.png",
+		BoardSpecRef.TYPE_EVENT:  "res://assets/store/ui/star_red.png",
+		BoardSpecRef.TYPE_SYSTEM: "res://assets/store/ui/star_yellow.png",
+		BoardSpecRef.TYPE_COIN:   "res://assets/store/ui/coin_gold.png",
+		BoardSpecRef.TYPE_NPC:    "res://assets/store/ui/particle_star.png",
 	}
 	for i in BoardSpecRef.BOARD_SIZE:
 		var t_type: String = BoardSpecRef.tile_type_for(i, npc_slot_indices)
 		if t_type == BoardSpecRef.TYPE_NORMAL:
 			continue
-		var center: Vector2 = tile_positions[i] + Vector2(BoardSpecRef.TILE_W * 0.5, BoardSpecRef.TILE_W * 0.5)
-		# 半透明圆形发光底盘（柔和地标 + 不破坏地图画面）
-		var glow_size := 56.0
-		var glow := Panel.new()
-		var gsb := StyleBoxFlat.new()
-		var ring_col: Color = BoardSpecRef.badge_color_for_type(t_type)
-		gsb.bg_color = Color(ring_col.r, ring_col.g, ring_col.b, 0.45)
-		gsb.border_color = Color(1, 0.95, 0.6, 0.85)
-		gsb.set_border_width_all(2)
-		gsb.set_corner_radius_all(int(glow_size))
-		glow.add_theme_stylebox_override("panel", gsb)
-		glow.position = center - Vector2(glow_size * 0.5, glow_size * 0.5)
-		glow.size = Vector2(glow_size, glow_size)
-		glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		board_root.add_child(glow)
-		# 真实图标贴在中央
+		var center: Vector2 = path_points[i]
 		var icon_path: String = String(icon_paths.get(t_type, ""))
 		if not icon_path.is_empty() and ResourceLoader.exists(icon_path):
 			var icon := TextureRect.new()
 			icon.texture = load(icon_path)
 			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			var icon_size := 36.0
+			var icon_size := 44.0
 			icon.position = center - Vector2(icon_size * 0.5, icon_size * 0.5)
 			icon.size = Vector2(icon_size, icon_size)
 			icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			board_root.add_child(icon)
+
+	# === 4) 路径外围装饰（树/灌木，不挡棋子也不重叠路径） ===
+	_place_decorations(path_points)
 
 	# NPC 头像贴在格子上方
 	for i in npc_slot_indices.size():
@@ -360,6 +405,63 @@ func _build_board() -> void:
 		npc_root.add_child(avatar)
 		npc_visuals.append({"avatar": avatar, "ring": ring, "slot": slot_idx})
 
+# ===== 路径外围装饰（树 / 灌木） =====
+func _place_decorations(path_points: Array) -> void:
+	var deco_paths := [
+		"res://assets/store/deco/tree1.png",
+		"res://assets/store/deco/tree2.png",
+		"res://assets/store/deco/bush.png",
+		"res://assets/store/deco/pine_large.png",
+		"res://assets/store/deco/pine_low.png",
+	]
+	# 棋盘外围 + 内部岛屿区域放装饰，避开路径 ~70px 缓冲
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242  # 固定种子，每次开局相同
+	var vp_size: Vector2 = get_viewport_rect().size
+	var board_w: float = 7.0 * BoardSpecRef.ST + BoardSpecRef.TILE_W
+	var board_h: float = 6.0 * BoardSpecRef.ST + BoardSpecRef.TILE_W
+	# 路径围出的内部矩形
+	var inner_min: Vector2 = path_points[0] + Vector2(BoardSpecRef.TILE_W, BoardSpecRef.TILE_W) * 0.5
+	var inner_max: Vector2 = path_points[14] - Vector2(BoardSpecRef.TILE_W, BoardSpecRef.TILE_W) * 0.5
+	# 在内部岛屿放装饰
+	for i in 14:
+		var pos := Vector2(
+			rng.randf_range(inner_min.x + 30, inner_max.x - 30),
+			rng.randf_range(inner_min.y + 30, inner_max.y - 30))
+		_spawn_deco(deco_paths[rng.randi() % deco_paths.size()], pos, rng.randf_range(0.45, 0.7))
+	# 棋盘外围（路径之外）放装饰
+	for i in 30:
+		var pos: Vector2
+		var attempts := 0
+		while attempts < 10:
+			pos = Vector2(rng.randf_range(0, vp_size.x - 360), rng.randf_range(0, vp_size.y))
+			# 距离最近路径点
+			var min_d := 9999.0
+			for p in path_points:
+				min_d = min(min_d, pos.distance_to(p))
+			if min_d > 90 and min_d < 350:
+				break
+			attempts += 1
+		if attempts >= 10:
+			continue
+		_spawn_deco(deco_paths[rng.randi() % deco_paths.size()], pos, rng.randf_range(0.4, 0.65))
+
+func _spawn_deco(path: String, pos: Vector2, scale_v: float) -> void:
+	if not ResourceLoader.exists(path):
+		return
+	var tex: Texture2D = load(path)
+	var sprite := TextureRect.new()
+	sprite.texture = tex
+	sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	sprite.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	# 大图素材统一缩到 ~80-120px，cartography pack 64×128 也按 scale 缩
+	var tw: float = 96.0 * scale_v
+	var th: float = tw * (float(tex.get_height()) / float(tex.get_width()))
+	sprite.size = Vector2(tw, th)
+	sprite.position = pos - Vector2(tw * 0.5, th * 0.85)  # 锚底中
+	sprite.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	board_root.add_child(sprite)
+
 # ===== 玩家棋子 =====
 func _build_players() -> void:
 	# token_root 是 Control，PlayerToken 是 Node2D，需要嵌一层 Node2D 容器
@@ -385,16 +487,16 @@ func _layout_tokens_at_positions() -> void:
 		var occupants: Array = pos_to_players[pos]
 		for k in occupants.size():
 			var pi: int = occupants[k]
-			# 棋子锚定在格子底部中央（视觉上"站"在格子上）
-			var center := tile_positions[pos] + Vector2(BoardSpecRef.TILE_W * 0.5, BoardSpecRef.TILE_W * 0.85)
+			# 棋子站在路径中心（踏板上）
+			var center := tile_positions[pos] + Vector2(BoardSpecRef.TILE_W * 0.5, BoardSpecRef.TILE_W * 0.5)
 			var offset := Vector2.ZERO
 			if occupants.size() == 2:
-				offset = Vector2(-14 + 28 * k, 0)
+				offset = Vector2(-16 + 32 * k, 0)
 			elif occupants.size() >= 3:
 				var x_factor: float = 1.0 if occupants.size() <= 3 else 0.6
-				offset = Vector2((-18 + 18 * k) * x_factor, (k % 2) * 10 - 5)
+				offset = Vector2((-22 + 22 * k) * x_factor, (k % 2) * 12 - 6)
 			(token_visuals[pi] as Node2D).position = center + offset
-			(token_visuals[pi] as Node2D).z_index = 5 + int(center.y)  # 越靠下越在前
+			(token_visuals[pi] as Node2D).z_index = 5 + int(center.y)
 
 # ===== 星星 =====
 func _build_stars_initial() -> void:
