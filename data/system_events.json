@@ -1,0 +1,13 @@
+[
+  { "id": "sys_star_move",        "name": "⭐ 星星换位置",       "icon": "⭐", "description": "星星随机移动到新位置" },
+  { "id": "sys_forward_10",       "name": "🚀 往前走10格",      "icon": "🚀", "description": "向前冲刺10格" },
+  { "id": "sys_backward_5",       "name": "🐢 往后走5格",       "icon": "🐢", "description": "后退5格" },
+  { "id": "sys_swap_player",      "name": "🔄 和随机角色换位置","icon": "🔄", "description": "与一位随机角色互换位置" },
+  { "id": "sys_near_star",        "name": "🌠 走到星星前两格",  "icon": "🌠", "description": "瞬移到星星前两格" },
+  { "id": "sys_random_pos",       "name": "🎲 跳到随机位置",    "icon": "🎲", "description": "随机传送到棋盘任意位置" },
+  { "id": "sys_steal_coins",      "name": "🕵️ 抽取金币",        "icon": "🕵️", "description": "从随机角色身上抽取金币" },
+  { "id": "sys_star_price_up",    "name": "📈 星星涨价",        "icon": "📈", "description": "场上所有星星价格上涨5金币" },
+  { "id": "sys_star_price_down",  "name": "📉 星星降价",        "icon": "📉", "description": "场上所有星星价格下降5金币" },
+  { "id": "sys_add_star",         "name": "🌟 额外星星",        "icon": "🌟", "description": "场上多出一颗一次性星星" },
+  { "id": "sys_get_coin",         "name": "💰 获得一个金币",    "icon": "💰", "description": "获得一个金币" }
+]

@@ -1,0 +1,17 @@
+[
+  { "id": "ev_huoji",   "name": "火鸡面",         "icon": "🌶️", "type": "reward",     "description": "获得一包火鸡面" },
+  { "id": "ev_latiao",  "name": "辣条",           "icon": "🌶️", "type": "reward",     "description": "获得一包辣条" },
+  { "id": "ev_shupian", "name": "薯片",           "icon": "🥔", "type": "reward",     "description": "获得一包薯片" },
+  { "id": "ev_chouls",  "name": "抽零食",         "icon": "❓", "type": "reward",     "description": "从零食箱抽一个零食" },
+  { "id": "ev_hb10",    "name": "获得一个10元红包","icon": "🧧", "type": "reward",     "description": "运气不错！", "coins": 0 },
+  { "id": "ev_hb20",    "name": "获得一个20元红包","icon": "🧧", "type": "reward",     "description": "运气真好！", "coins": 0 },
+  { "id": "ev_hb5",     "name": "获得一个5元红包", "icon": "🧧", "type": "reward",     "description": "小赚一笔！", "coins": 0 },
+  { "id": "ev_hb50",    "name": "获得一个50元红包","icon": "🧧", "type": "reward",     "description": "超级大红包！", "coins": 0 },
+  { "id": "ev_xiwan1",  "name": "洗碗一次",       "icon": "🍽️", "type": "punishment", "description": "需要洗碗一次" },
+  { "id": "ev_saodi1",  "name": "扫地一次",       "icon": "🧹", "type": "punishment", "description": "需要扫地一次" },
+  { "id": "ev_xiwan3",  "name": "洗碗三次",       "icon": "🍽️", "type": "punishment", "description": "需要洗碗三次" },
+  { "id": "ev_saodi3",  "name": "扫地三次",       "icon": "🧹", "type": "punishment", "description": "需要扫地三次" },
+  { "id": "ev_sing",    "name": "唱一首歌",       "icon": "🎤", "type": "punishment", "description": "为大家唱一首歌" },
+  { "id": "ev_duorou",  "name": "选一个多肉零食", "icon": "🍬", "type": "reward",     "description": "从多肉零食中选一个自己喜欢的" },
+  { "id": "ev_yaols",   "name": "要指定零食",     "icon": "🍪", "type": "reward",     "description": "可以选择一个指定的零食" }
+]

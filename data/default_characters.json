@@ -1,0 +1,5 @@
+[
+  { "id": "ch_qi",   "name": "琪琪", "avatar": "res://assets/roles/qi.png",   "color": "#e74c3c" },
+  { "id": "ch_han",  "name": "涵涵", "avatar": "res://assets/roles/han.png",  "color": "#3498db" },
+  { "id": "ch_ying", "name": "滢滢", "avatar": "res://assets/roles/ying.png", "color": "#2ecc71" }
+]

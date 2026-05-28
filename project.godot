@@ -1,0 +1,44 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="新春派对大富翁"
+config/description="马里奥派对风格大富翁 - Summer Engine 移植版"
+run/main_scene="res://scenes/Boot.tscn"
+config/features=PackedStringArray("4.6", "Forward Plus")
+config/icon="res://icon.svg"
+
+[autoload]
+
+SaveSystem="*res://scripts/autoload/SaveSystem.gd"
+GameStore="*res://scripts/autoload/GameStore.gd"
+AudioBus="*res://scripts/autoload/AudioBus.gd"
+EventDB="*res://scripts/autoload/EventDB.gd"
+SceneRouter="*res://scripts/autoload/SceneRouter.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=800
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[dotnet]
+
+project/assembly_name="新建游戏项目"
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+rendering_device/driver.windows="d3d12"

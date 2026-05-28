@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://clyk6jwxsx4qq"]
+
+[ext_resource type="Script" uid="uid://dfhq55uwl2tds" path="res://scripts/scenes/DebugAutoPlay.gd" id="1"]
+
+[node name="DebugAutoPlay" type="Node" unique_id=863158120]
+script = ExtResource("1")

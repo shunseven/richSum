@@ -1,0 +1,10 @@
+[
+  { "id": "ne_chui",    "name": "捶背",         "icon": "👋", "type": "reward",     "description": "帮长辈捶背" },
+  { "id": "ne_dance",   "name": "一起跳舞",     "icon": "💃", "type": "reward",     "description": "和NPC一起跳舞" },
+  { "id": "ne_taohb",   "name": "讨红包",       "icon": "🧧", "type": "reward",     "description": "向NPC讨红包" },
+  { "id": "ne_geihb",   "name": "给NPC红包",    "icon": "🧧", "type": "punishment", "description": "给NPC发红包" },
+  { "id": "ne_daiwan",  "name": "小游戏代玩",   "icon": "🎮", "type": "reward",     "description": "请求下一次小游戏由NPC代玩" },
+  { "id": "ne_lianxi",  "name": "送寒假练习题", "icon": "📚", "type": "reward",     "description": "送一本寒假练习题" },
+  { "id": "ne_jiama",   "name": "加码最终大奖", "icon": "🎁", "type": "npc_system", "description": "请求NPC为最终赢家加码红包" },
+  { "id": "ne_redice",  "name": "帮忙再摇一次", "icon": "🎲", "type": "npc_system", "description": "NPC帮你再摇一次骰子" }
+]

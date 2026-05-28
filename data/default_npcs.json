@@ -1,0 +1,10 @@
+[
+  { "id": "npc_biao",  "name": "爷爷",   "avatar": "res://assets/roles/biao.png", "color": "#636e72" },
+  { "id": "npc_ling",  "name": "奶奶",   "avatar": "res://assets/roles/ling.png", "color": "#b2bec3" },
+  { "id": "npc_guang", "name": "广文",   "avatar": "res://assets/roles/guang.png","color": "#a29bfe" },
+  { "id": "npc_yi",    "name": "亦文",   "avatar": "res://assets/roles/yi.png",   "color": "#fdcb6e" },
+  { "id": "npc_ping",  "name": "秋平",   "avatar": "res://assets/roles/ping.png", "color": "#e17055" },
+  { "id": "npc_shun",  "name": "顺文",   "avatar": "res://assets/roles/shun.png", "color": "#00b894" },
+  { "id": "npc_juen",  "name": "淑娟",   "avatar": "res://assets/roles/juen.png", "color": "#74b9ff" },
+  { "id": "npc_zm",    "name": "外祖母", "avatar": "res://assets/roles/zm.png",   "color": "#85117e" }
+]
