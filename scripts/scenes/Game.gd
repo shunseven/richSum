@@ -3,6 +3,11 @@ extends Control
 
 const BoardSpecRef := preload("res://scripts/systems/BoardSpec.gd")
 const Dice3DScript := preload("res://scripts/ui/Dice3D.gd")
+const TileRendererRef := preload("res://scripts/ui/TileRenderer.gd")
+const TableTopBgRef := preload("res://scripts/ui/TableTopBg.gd")
+const PlayerTokenScript := preload("res://scripts/ui/PlayerToken.gd")
+const LanternCornerScript := preload("res://scripts/ui/LanternCorner.gd")
+const CoinParticleRef := preload("res://scripts/ui/CoinParticle.gd")
 
 # ===== 配置 =====
 const INITIAL_COINS := 5
@@ -50,7 +55,7 @@ var npc_visuals: Array = []
 
 func _ready() -> void:
 	_e2e_log("Game._ready start")
-	UIUtil.make_bg(self, "game")
+	_build_table_bg()
 	_build_layout()
 	var params: Dictionary = SceneRouter.consume_params()
 	_e2e_log("Game params keys=%s" % str(params.keys()))
@@ -193,6 +198,23 @@ func _build_layout() -> void:
 	modal_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(modal_root)
 
+func _build_table_bg() -> void:
+	# 整张 AI 生成的大富翁地图作为棋盘画面
+	var map_path := "res://assets/store/board_map.png"
+	if ResourceLoader.exists(map_path):
+		var bg := TextureRect.new()
+		bg.texture = load(map_path)
+		bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+		bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(bg)
+	else:
+		var fallback := ColorRect.new()
+		fallback.color = Color(0.2, 0.4, 0.3)
+		fallback.set_anchors_preset(Control.PRESET_FULL_RECT)
+		add_child(fallback)
+
 # ===== 初始化 =====
 func _init_new_game(rounds: int, mode: String, chars: Array, in_npcs: Array) -> void:
 	total_rounds = rounds
@@ -261,27 +283,56 @@ func _build_board() -> void:
 		max(0.0, (board_size.y - spec_h) * 0.5)
 	)
 	tile_positions = BoardSpecRef.get_tile_positions(board_origin)
+	# 不再绘制路径瓷砖，路径已经在背景大图上画好。
+	# 这里只放\"判定点\"标记：每格一个小方框（半透明），用于事件触发位置可视化。
+	# 1) 用透明 Control 占位（保留 tile_visuals 数组结构供其他逻辑用）
+	for i in BoardSpecRef.BOARD_SIZE:
+		var slot := Control.new()
+		slot.position = tile_positions[i]
+		slot.size = Vector2(BoardSpecRef.TILE_W, BoardSpecRef.TILE_W)
+		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		board_root.add_child(slot)
+		tile_visuals.append(slot)
+
+	# 2) 事件标记：用真实图标 sprite（不再用色块圆）
+	var icon_paths := {
+		BoardSpecRef.TYPE_START:  "res://assets/store/ui/treasure.png",   # 起点宝箱
+		BoardSpecRef.TYPE_EVENT:  "res://assets/store/ui/star_red.png",   # 事件红星
+		BoardSpecRef.TYPE_SYSTEM: "res://assets/store/ui/star_yellow.png",# 系统金星
+		BoardSpecRef.TYPE_COIN:   "res://assets/store/ui/coin_gold.png",  # 金币
+		BoardSpecRef.TYPE_NPC:    "res://assets/store/ui/particle_star.png",# NPC
+	}
 	for i in BoardSpecRef.BOARD_SIZE:
 		var t_type: String = BoardSpecRef.tile_type_for(i, npc_slot_indices)
-		var pc := PanelContainer.new()
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = BoardSpecRef.tile_color_for_type(t_type)
-		sb.border_color = Color(1, 1, 1, 0.7)
-		sb.set_border_width_all(2)
-		sb.set_corner_radius_all(10)
-		pc.add_theme_stylebox_override("panel", sb)
-		pc.position = tile_positions[i]
-		pc.size = Vector2(BoardSpecRef.TILE_W, BoardSpecRef.TILE_W)
-		pc.custom_minimum_size = pc.size
-		var l := UIUtil.make_label(BoardSpecRef.tile_emoji_for_type(t_type), 28, Color.WHITE, true)
-		l.set_anchors_preset(Control.PRESET_FULL_RECT)
-		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		pc.add_child(l)
-		var idx_l := UIUtil.make_label(str(i), 12, Color(1, 1, 1, 0.7))
-		idx_l.position = Vector2(4, 2)
-		pc.add_child(idx_l)
-		board_root.add_child(pc)
-		tile_visuals.append(pc)
+		if t_type == BoardSpecRef.TYPE_NORMAL:
+			continue
+		var center: Vector2 = tile_positions[i] + Vector2(BoardSpecRef.TILE_W * 0.5, BoardSpecRef.TILE_W * 0.5)
+		# 半透明圆形发光底盘（柔和地标 + 不破坏地图画面）
+		var glow_size := 56.0
+		var glow := Panel.new()
+		var gsb := StyleBoxFlat.new()
+		var ring_col: Color = BoardSpecRef.badge_color_for_type(t_type)
+		gsb.bg_color = Color(ring_col.r, ring_col.g, ring_col.b, 0.45)
+		gsb.border_color = Color(1, 0.95, 0.6, 0.85)
+		gsb.set_border_width_all(2)
+		gsb.set_corner_radius_all(int(glow_size))
+		glow.add_theme_stylebox_override("panel", gsb)
+		glow.position = center - Vector2(glow_size * 0.5, glow_size * 0.5)
+		glow.size = Vector2(glow_size, glow_size)
+		glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		board_root.add_child(glow)
+		# 真实图标贴在中央
+		var icon_path: String = String(icon_paths.get(t_type, ""))
+		if not icon_path.is_empty() and ResourceLoader.exists(icon_path):
+			var icon := TextureRect.new()
+			icon.texture = load(icon_path)
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			var icon_size := 36.0
+			icon.position = center - Vector2(icon_size * 0.5, icon_size * 0.5)
+			icon.size = Vector2(icon_size, icon_size)
+			icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			board_root.add_child(icon)
 
 	# NPC 头像贴在格子上方
 	for i in npc_slot_indices.size():
@@ -311,21 +362,13 @@ func _build_board() -> void:
 
 # ===== 玩家棋子 =====
 func _build_players() -> void:
+	# token_root 是 Control，PlayerToken 是 Node2D，需要嵌一层 Node2D 容器
 	for i in players.size():
 		var p: Dictionary = players[i]
-		var token := Panel.new()
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = UIUtil.parse_color(String(p.get("color", "#e74c3c")))
-		sb.border_color = Color.WHITE
-		sb.set_border_width_all(3)
-		sb.set_corner_radius_all(BoardSpecRef.TOKEN_R + 2)
-		token.add_theme_stylebox_override("panel", sb)
-		token.size = Vector2(BoardSpecRef.TOKEN_R * 2, BoardSpecRef.TOKEN_R * 2)
-		token.custom_minimum_size = token.size
-		var label := UIUtil.make_label(String(p.get("name", "")).substr(0, 1), 14, Color.WHITE, true)
-		label.set_anchors_preset(Control.PRESET_FULL_RECT)
-		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		token.add_child(label)
+		var token: Node2D = PlayerTokenScript.new()
+		token.set("char_set_index", i)  # 每个玩家不同角色
+		token.set("color", UIUtil.parse_color(String(p.get("color", "#e74c3c"))))
+		token.set("display_name", String(p.get("name", "")))
 		token_root.add_child(token)
 		token_visuals.append(token)
 	_layout_tokens_at_positions()
@@ -342,14 +385,16 @@ func _layout_tokens_at_positions() -> void:
 		var occupants: Array = pos_to_players[pos]
 		for k in occupants.size():
 			var pi: int = occupants[k]
-			var center := tile_positions[pos] + Vector2(BoardSpecRef.TILE_W * 0.5, BoardSpecRef.TILE_W * 0.5) - Vector2(BoardSpecRef.TOKEN_R, BoardSpecRef.TOKEN_R)
+			# 棋子锚定在格子底部中央（视觉上"站"在格子上）
+			var center := tile_positions[pos] + Vector2(BoardSpecRef.TILE_W * 0.5, BoardSpecRef.TILE_W * 0.85)
 			var offset := Vector2.ZERO
 			if occupants.size() == 2:
-				offset = Vector2(-12 + 24 * k, 0)
+				offset = Vector2(-14 + 28 * k, 0)
 			elif occupants.size() >= 3:
 				var x_factor: float = 1.0 if occupants.size() <= 3 else 0.6
-				offset = Vector2((-16 + 16 * k) * x_factor, (k % 2) * 12 - 6)
-			(token_visuals[pi] as Control).position = center + offset
+				offset = Vector2((-18 + 18 * k) * x_factor, (k % 2) * 10 - 5)
+			(token_visuals[pi] as Node2D).position = center + offset
+			(token_visuals[pi] as Node2D).z_index = 5 + int(center.y)  # 越靠下越在前
 
 # ===== 星星 =====
 func _build_stars_initial() -> void:
@@ -368,8 +413,8 @@ func _rebuild_stars_view() -> void:
 		label.size = Vector2(44, 44)
 		star_root.add_child(label)
 		star_visuals.append(label)
-		# 浮动动画
-		var tw := create_tween().set_loops()
+		# 浮动动画（限制循环次数避免无限循环错误）
+		var tw := create_tween().set_loops(999)
 		tw.tween_property(label, "position:y", label.position.y - 6, 0.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		tw.tween_property(label, "position:y", label.position.y, 0.8).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
@@ -511,10 +556,9 @@ func _move_player(pi: int, steps: int) -> void:
 func _animate_token_to(pi: int, _pos_idx: int) -> void:
 	# 重新布局所有同格 token
 	_layout_tokens_at_positions()
-	var t: Control = token_visuals[pi]
-	var tw := create_tween()
-	tw.tween_property(t, "scale", Vector2(1.25, 1.25), MOVE_STEP_TIME * 0.4).set_trans(Tween.TRANS_QUAD)
-	tw.tween_property(t, "scale", Vector2(1.0, 1.0), MOVE_STEP_TIME * 0.5).set_trans(Tween.TRANS_QUAD)
+	var t: Node2D = token_visuals[pi]
+	if t.has_method("play_squash"):
+		t.play_squash()
 
 # ===== 落地结算 =====
 func _resolve_landing(pi: int) -> void:

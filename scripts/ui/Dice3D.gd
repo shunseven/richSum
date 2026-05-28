@@ -116,18 +116,20 @@ func _face_index_to_value(face_i: int) -> int:
 	return 1
 
 func _make_face_texture(value: int) -> Texture2D:
+	# 优先用 Kenney boardgame-pack 的 dieWhite{value}.png
+	var path := "res://assets/store/dice/dieWhite%d.png" % clamp(value, 1, 6)
+	if ResourceLoader.exists(path):
+		return load(path)
+	# 兜底：程序绘制
 	var img := Image.create(128, 128, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0.98, 0.98, 0.98))
-	# 边缘
 	for x in 128:
 		img.set_pixel(x, 0, Color(0.85, 0.85, 0.85))
 		img.set_pixel(x, 127, Color(0.85, 0.85, 0.85))
 	for y in 128:
 		img.set_pixel(0, y, Color(0.85, 0.85, 0.85))
 		img.set_pixel(127, y, Color(0.85, 0.85, 0.85))
-	# 圆点位置
-	var positions: Array = _dot_positions(value)
-	for p in positions:
+	for p in _dot_positions(value):
 		_draw_dot(img, p[0], p[1], 12, Color(0.85, 0.1, 0.1))
 	return ImageTexture.create_from_image(img)
 
